@@ -1,0 +1,6 @@
+Theme = /usr/share/moc/themes/darkdot_theme
+XTermTheme = /usr/share/moc/themes/darkdot_theme
+Fastdir1 =/root/mp3/mp3
+Layout1 = directory(0,0,100%,100%)
+
+
