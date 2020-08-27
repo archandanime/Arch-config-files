@@ -1,0 +1,103 @@
+PROCEDURE FOR WORDPRESS ON DESKTOP SERVER WITH LAMP(LINIX, APACHE, MYSQL, PHP)
+
+
+Ref: https://wiki.archlinux.org/index.php/Apache_HTTP_Server
+Ref: https://wiki.archlinux.org/index.php/MariaDB
+
+
+===================
+PACKAGE INSTALLATION
+===================
+
+❯ sudo pacman -S php php-apache php-fpm mysql
+(in this case, mysql is the 'madiadb' package)
+Optional: php-gd php-fpm php-cgi mod_proxy_fcgi
+
+
+===================
+APACHE - PHP SETUP
+===================
+
+
+## start apache daemon
+❯ sudo systemctl start httpd
+❯ sudo systemctl enable httpd
+
+
+Edit /etc/httpd/conf/httpd.conf
+	specify		ServerName
+	comment		#LoadModule mpm_event_module modules/mod_mpm_event.so
+	UNcomment	LoadModule mpm_prefork_module modules/mod_mpm_prefork.so
+			LoadModule php7_module modules/libphp7.so
+	add to the end of LoadModule list
+			AddHandler php7-script .php
+	add to the end of Include list
+			Include conf/extra/php7_module.conf
+	find 'IfModule dir_module' and edit
+			DirectoryIndex index.html index.php
+	AllowOverride All	
+
+## restart apache daemon
+❯ sudo systemctl restart httpd
+
+Enable mysql, Madiadb extensions in /etc/php.ini
+	Uncomment	extension=pdo_mysql
+			extension=mysqli	
+
+===================
+MYSQL SETUP
+===================
+
+
+❯ sudo mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
+
+## start mysql server for database setup
+❯ sudo systemctl start mysql
+❯ sudo systemctl enable mysql
+
+## secure installation setup
+❯ mysql_secure_installation
+
+
+
+## login to mysql as root with empty password
+❯ sudo mysql -u root -p
+MariaDB [(none)]>
+
+## create a database for wordpress
+MariaDB> create database wordpress_db;
+
+## create user for wordpress with password
+MariaDB> CREATE USER 'wordpress_user'@'localhost' IDENTIFIED BY 'wordpress_password';
+
+## grant permission for wordpress_user on wordpress_db
+MariaDB> GRANT ALL PRIVILEGES ON wordpress_db.* TO 'wordpress_user'@'localhost';
+
+## reload the grant tables
+MariaDB> FLUSH PRIVILEGES;
+
+## exit
+MadiaDB> quit;
+
+===================
+WORDPRESS SETUP
+===================
+
+
+## download wordpress package
+❯ cd /srv/http
+❯ wget https://wordpress.org/latest.tar.gz
+❯ tar -xzvf latest.tar.gz
+
+## see what user is apache running as
+❯ ps -aux|grep httpd
+root        4887  0.0  0.2  76896 21892 ?        Ss   10:39   0:00 httpd -k restart
+http        4942  0.0  0.1  77304 15288 ?        S    10:40   0:00 httpd -k restart
+http        4943  0.0  0.1  77304  9880 ?        S    10:40   0:00 httpd -k restart
+
+## change owner for wordpress directory
+❯ sudo chown -R http:http wordpress
+
+
+Access http://127.0.0.1/wordpress/index.php via web browser
+
