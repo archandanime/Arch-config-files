@@ -1,1 +1,1 @@
-Some plain text file from my Arch machine.
+Some text file from my Arch machine.
