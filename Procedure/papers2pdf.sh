@@ -29,7 +29,7 @@ img2pdf --output tmp1.pdf -S A4 jpeg/*.jpeg
 img2pdf --output tmp1.pdf -S A4 90/*.jpeg
 
 ## 3/ Add document info page
-## Download and edit https://github.com/archandanime/Arch-files/blob/master/Procedure/papers2pdf-endpage.odt
-wget https://github.com/archandanime/Arch-files/raw/master/Procedure/papers2pdf-endpage.odt
+## Download and edit https://github.com/archandanime/Arch-files/blob/master/Procedure/papers2pdf-infopage.odt
+wget https://github.com/archandanime/Arch-files/raw/master/Procedure/papers2pdf-infopage.odt
 ## Merge pdf
 pdftk tmp1.pdf scanned-document-info.pdf cat output done.pdf
