@@ -1,0 +1,55 @@
+## /etc/default/grub
+root=/dev/mapper/enc-root rw cryptdevice=/dev/disk/by-id/ata-HGST_HTS541010B7E610_WX61EB734C70-part7:enc:header root=/dev/mapper/enc-root cryptkey=/dev/disk/by-id/ata-HGST_HTS541010B7E610_WX61EB734C70-part6:ext4:/enc.img
+
+## /etc/mkinitcpio.conf
+MODULES=(loop)
+FILES=(/boot/enc-header.img)
+HOOKS=(base udev autodetect keyboard modconf block encrypt2 lvm2 filesystems fsck)
+
+cp /usr/lib/initcpio/hooks/encrypt /etc/initcpio/hooks/encrypt2
+cp /usr/lib/initcpio/install/encrypt /etc/initcpio/install/encrypt2
+
+
+## nano /etc/initcpio/hooks/encrypt2
+    warn_deprecated() {
+        echo "The syntax 'root=${root}' where '${root}' is an encrypted volume is deprecated"
+        echo "Use 'cryptdevice=${root}:root root=/dev/mapper/root' instead."
+    }
+
+    local headerFlag=false
+    for cryptopt in ${cryptoptions//,/ }; do
+        case ${cryptopt} in
+            allow-discards)
+                cryptargs="${cryptargs} --allow-discards"
+                ;;
+                header)
+                        cryptargs="${cryptargs} --header=/boot/enc-header.img"
+                        headerFlag=true
+                ;;
+            *)
+                echo "Encryption option '${cryptopt}' not known, ignoring." >&2
+                ;;
+        esac
+    done
+
+    if resolved=$(resolve_device "${cryptdev}" ${rootdelay}); then
+        if $headerFlag || cryptsetup isLuks ${resolved} >/dev/null 2>&1; then
+            [ ${DEPRECATED_CRYPT} -eq 1 ] && warn_deprecated
+            dopassphrase=1
+            # If keyfile exists, try to use that
+            if [ -f ${ckeyfile} ]; then
+                if eval cryptsetup --key-file ${ckeyfile} open --type luks ${resolved} ${cryptname} ${cryptargs} ${CSQUIET}; then
+                    dopassphrase=0
+                else
+                    echo "Invalid keyfile. Reverting to passphrase."
+                fi
+            fi
+
+
+## /etc/crypttab
+p12             /dev/disk/by-partuuid/0e76b9d3-a293-4d6d-b5cf-b0965bd79261      /p12-key.img    plain
+
+## /etc/fstab
+/dev/mapper/p12                                 /p12            ext4            rw,relatime     0 2
+
+
