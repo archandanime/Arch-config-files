@@ -1,14 +1,13 @@
 #!/bin/bash
-
-# quickly 
+ 
 # Empty serial means remote block device(nbd)
 # Do not use dm-crypt on disk without partition table(msdos/gpt)
-# Currently only supports devices with a single partition
-# Last edited: 2023-01-12
+# Currently only supports devices encrypted partition as the only partition
+# Last edited: 2023-03-23
 
 
 showSyntax() {
-echo "Syntax: ./$(basename $0) <ubu/hbu/nbu> <attach/detach/poweroff>"
+echo "Syntax: ./$(basename $0) <hbu/nbu> <attach/detach>"
 exit 1
 }
 
@@ -19,6 +18,7 @@ importHBUvars() {
 USE_NDB=
 NBD_HOST=
 NBD_PORT=
+NBD_SSH_USER=
 NBD_EXPORT_NAME=
 
 # physical
@@ -30,7 +30,7 @@ DMCRYPT_MODE=
 DECRYPT_TYPE=
 USE_LUKSHEADER=
 
-DEVICE=$DISK_SDX
+DEVICE=
 MAPPER_NAME=
 LUKS_HEADER=
 KEYFILE=
@@ -45,41 +45,12 @@ LVM_LV=
 }
 
 
-importUBUvars() {
-# NBD
-USE_NDB=
-NBD_HOST=
-NBD_PORT=
-NBD_EXPORT_NAME=
-
-# physical
-SERIAL=
-[ ! "$SERIAL" == "" ] && [ ! "$USE_NDB" == "yes" ] && DISK_SDX=`echo /dev/$(lsblk -o name,serial | grep $SERIAL | awk '{print $1}')`
-
-# dm-crypt - mounting
-DMCRYPT_MODE=
-DECRYPT_TYPE=
-USE_LUKSHEADER=
-
-DEVICE=$DISK_SDX
-MAPPER_NAME=
-LUKS_HEADER=
-KEYFILE=
-PASSHPRASE=
-MOUNTPOINT=
-
-# LVM
-USE_LVM=
-LVM_VG=
-LVM_LV=
-}
-
-
 importNBUvars() {
 # NBD
 USE_NBD=
 NBD_HOST=
 NBD_PORT=
+NBD_SSH_USER=s
 NBD_EXPORT_NAME=
 
 SERIAL=""
@@ -90,11 +61,11 @@ DMCRYPT_MODE=
 DECRYPT_TYPE=
 USE_LUKSHEADER=
 
-DEVICE=$DISK_SDX
+DEVICE=
 MAPPER_NAME=
 LUKS_HEADER=
 KEYFILE=
-PASSHPRASE=
+PASSPHRASE=
 MOUNTPOINT=
 
 # LVM
@@ -137,10 +108,11 @@ msg() {
 checkDiskConnected() {
 case $SERIAL in
 	"" )
-		[ ! "$(hostname -i)" == "192.168.10.32" ] && { fail "Not connected to local network"; exit 1; } ;;
+		[ ! "$(ifconfig enp2s0 | grep 'inet' | cut -d: -f2 | awk '{print $2}')" == "fe80::c4ee:c0be:1444:6e%wlo1 192.168.10.32" ] && \
+		{ fail "Not connected to local network"; exit 1; } ;;
 	* )
 		if ! lsblk -o serial | grep -q -e $SERIAL ; then
-			fail "Device $MAPPER_NAME is not connected"
+			fail "Storage device $MAPPER_NAME is not connected, perhaps the device has been powered off, try re-plugging in the device"
 		exit 1
 		fi ;;
 esac
@@ -172,8 +144,10 @@ if [ "$USE_NBD" == "yes" ]; then
 		sudo modprobe nbd
 	fi
 	[ ! "$(nbd-client -c $DEVICE)" == "" ] && { lsblk $DEVICE; echo; echo "Device $DEVICE is till in use, exiting..."; exit 1;}
-	sudo nbd-client $NBD_HOST $NBD_PORT $DEVICE -systemd-mark -persist -name $NBD_EXPORT_NAME
-	succeed "Mapped $NBD_EXPORT_NAME from $NBD_HOST:$NBD_PORT to $DEVICE"
+	echo "Creating local port forward at port $NBD_PORT"
+	ssh -fN -L $NBD_PORT:127.0.0.1:$NBD_PORT $NBD_SSH_USER@$NBD_HOST
+	echo "Mapping NBD to $DEVICE"
+	sudo nbd-client 127.0.0.1 $NBD_PORT $DEVICE -systemd-mark -persist -name $NBD_EXPORT_NAME && succeed "Mapped $NBD_EXPORT_NAME from $NBD_HOST:$NBD_PORT to $DEVICE"
 fi
 case $PASSPHRASE in
 	"" ) $( sudo cryptsetup $cryptsetup_arg_mode $DEVICE $cryptsetup_arg_luksheader $cryptsetup_arg_keyfile $MAPPER_NAME ) ;;
@@ -203,30 +177,13 @@ relockDisk() {
 		info "Device /dev/mapper/$MAPPER_NAME re-locked"
 	fi
 [ "$USE_NBD" == "yes" ] && { sudo nbd-client -d $DEVICE; info "Disconnected network block device at $DEVICE"; }
-}
-
-# poweroff
-poweroffDisk() {
-[ "$USE_NBD" == "yes" ] && { info "Operation unavailable, Network block device can't be powered off, try disconnecting instead" ; exit 1; }
-if df | grep -q /dev/mapper/$MAPPER_NAME; then
-	fail "Device $MAPPER_NAME wan't re-locked, disconnect it first!"
-	exit 1
-fi
-case $SERIAL in
-	"" ) # No serial = nbd
-		disconnect_nbd ;;
-	* ) # Serial = disk
-		[ "$USE_LVM" == "yes" ] && sudo vgchange -an $LVM_VG >/dev/null
-		sudo udisksctl power-off -b $DISK_SDX
-		info "Device is powered off!" ;;
-esac
+[ "$USE_LVM" == "yes" ] && { sudo vgchange -an $LVM_VG >/dev/null; sudo udisksctl power-off -b $DISK_SDX; info "Storage device has been powered off! You can safely remove the device" ; }
 }
 
 
 ##### START! #####
 case "$1" in
 	"hbu" ) importHBUvars ;;
-	"ubu" ) importUBUvars ;;
 	"nbu" ) importNBUvars ;;
 	* )
 		fail "Invalid device" ;
@@ -243,8 +200,6 @@ case "$2" in
 		unlockDisk ;;
 	"detach" )
 		relockDisk ;;
-	"poweroff" )
-		poweroffDisk ;;
 	* )
 		fail "Invalid operation" ;
 		showSyntax ;;
