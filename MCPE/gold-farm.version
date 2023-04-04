@@ -1,0 +1,45 @@
+
+VERSION 1 on Amy's realm
+	portal 23x23
+	portal activation switch and trident killer switched are separated
+	underground item filter, item disposer
+	storage: 5 double chests each trident killer
+	trident killers use their own pulse generators
+	only 1 portal can be used because of extreme lag
+	
+
+VERSION 2 on Yogurt's realm
+	portal 16x169
+	portal activation switch and trident killer switched are merged
+	uses a bottom platform for redstone parts
+	storage: 5 double chest each trident killer, on top platform
+	obsidians, crying obsidians for both platforms
+
+
+VERSION 3 on Minin's Island realm
+	portal 16x16
+	water streams use button for simplification and symmetry
+	uses vertical portal pulse generator
+	uses beacon for regeneration/resistance
+
+
+VERSION 4 on The Cool Realm realm
+	portal 16x16
+	built above the ocean
+	more space for landing
+	uses shulker loader
+	obsidians/crying obsidians for 2 platforms, purpur blocks for redstone parts
+
+
+VERSION 5 on TUK realm
+	portal 16x16
+	even more space for landing
+	lag reduction my minimalizing redstone dust updates, elininating redstone dusts if possible, lighting blocks with redstone torches on to negate light update, composters on top hoppers, dropper replaced by powered rail, vertical trident kill timer
+	top platform maxumum size and 16x16(square) and 30x30(with arrows)
+	ratio  (64*27*2 + 64*20 + 52) gold nuggets : (64*2 + 60) gold ingots = 25.468
+	625 ingots/hour (all nuggets crafted to ingots, looting III)
+	
+
+
+
+
